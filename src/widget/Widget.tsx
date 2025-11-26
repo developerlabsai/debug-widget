@@ -10,7 +10,8 @@ import { ErrorCapture } from '../capture/error-capture';
 import { captureScreenshot } from '../capture/screenshot';
 import { APIClient } from '../api/client';
 import { WebSocketClient } from '../api/websocket';
-import faviconUrl from '../../icons/favicon.png';
+import faviconDark from '../../icons/favicon.png';
+import faviconLight from '../../icons/favicon-light.png';
 
 // ============================================================================
 // Types
@@ -21,10 +22,12 @@ interface WidgetProps {
 }
 
 type DebugMode = 'wait' | 'backlog';
+type ThemeMode = 'light' | 'dark' | 'auto';
 
 interface StoredSettings {
   projectPath: string;
   debugMode: DebugMode;
+  theme: ThemeMode;
 }
 
 interface DebugSession {
@@ -44,33 +47,137 @@ const STORAGE_KEY = 'debug-widget-settings';
 const SESSION_STORAGE_KEY = 'debug-widget-sessions';
 
 // ============================================================================
-// Colors - Design System
+// Colors - Design System (Neutral Gray-Based)
 // ============================================================================
 
-const colors = {
-  primary: '#4F46E5',
-  primaryHover: '#4338CA',
-  primaryLight: '#EEF2FF',
-  secondary: '#6B7280',
-  secondaryHover: '#4B5563',
-  success: '#10B981',
-  warning: '#F59E0B',
-  warningBg: '#FEF3C7',
-  warningText: '#92400E',
-  error: '#EF4444',
-  white: '#FFFFFF',
-  gray50: '#F9FAFB',
-  gray100: '#F3F4F6',
-  gray200: '#E5E7EB',
-  gray300: '#D1D5DB',
-  gray400: '#9CA3AF',
-  gray500: '#6B7280',
-  gray700: '#374151',
-  gray900: '#111827',
-  overlay: 'rgba(0, 0, 0, 0.5)',
+// Light theme colors
+const lightColors = {
+  // Core palette
+  primary: '#3b82f6',        // blue-500
+  primaryHover: '#2563eb',
+  primaryLight: '#eff6ff',   // blue-50
+  primaryDark: '#1d4ed8',
+  accent: '#10b981',         // emerald-500
+  accentGreen: '#10b981',
+  secondary: '#555555',
+  secondaryHover: '#333333',
+  success: '#10b981',
+  warning: '#f59e0b',
+  warningBg: '#fef3c7',
+  warningText: '#92400e',
+  error: '#ef4444',
+  // Semantic colors (neutral gray-based)
+  background: '#ffffff',
+  backgroundSecondary: '#f5f5f5',
+  backgroundTertiary: '#e5e5e5',
+  text: '#111111',
+  textSecondary: '#555555',
+  textMuted: '#777777',
+  textPlaceholder: '#999999',
+  border: '#e0e0e0',
+  borderLight: '#f0f0f0',
+  inputBg: '#ffffff',
+  cardBg: '#ffffff',
+  overlay: 'rgba(0, 0, 0, 0.6)',
   shadow: 'rgba(0, 0, 0, 0.1)',
   shadowHeavy: 'rgba(0, 0, 0, 0.2)',
+  // Legacy aliases
+  white: '#ffffff',
+  gray50: '#fafafa',
+  gray100: '#f5f5f5',
+  gray200: '#e5e5e5',
+  gray300: '#d4d4d4',
+  gray400: '#a3a3a3',
+  gray500: '#737373',
+  gray700: '#404040',
+  gray900: '#171717',
+  // Favicon
+  favicon: faviconLight,
 };
+
+// Dark theme colors (Neutral Gray-Based)
+const darkColors = {
+  // Core palette
+  primary: '#60a5fa',        // blue-400
+  primaryHover: '#3b82f6',
+  primaryLight: '#1e3a5f',
+  primaryDark: '#93c5fd',
+  accent: '#34d399',         // emerald-400
+  accentGreen: '#34d399',
+  secondary: '#a1a1a1',
+  secondaryHover: '#d1d1d1',
+  success: '#34d399',
+  warning: '#fbbf24',
+  warningBg: '#422006',
+  warningText: '#fcd34d',
+  error: '#f87171',
+  // Semantic colors (neutral gray-based)
+  background: '#121212',
+  backgroundSecondary: '#1e1e1e',
+  backgroundTertiary: '#2a2a2a',
+  text: '#ffffff',
+  textSecondary: '#d1d1d1',
+  textMuted: '#a1a1a1',
+  textPlaceholder: '#6e6e6e',
+  border: '#2a2a2a',
+  borderLight: '#3a3a3a',
+  inputBg: '#1e1e1e',
+  cardBg: '#1e1e1e',
+  overlay: 'rgba(0, 0, 0, 0.8)',
+  shadow: 'rgba(0, 0, 0, 0.4)',
+  shadowHeavy: 'rgba(0, 0, 0, 0.6)',
+  // Legacy aliases
+  white: '#ffffff',
+  gray50: '#2a2a2a',
+  gray100: '#1e1e1e',
+  gray200: '#3a3a3a',
+  gray300: '#444444',
+  gray400: '#6e6e6e',
+  gray500: '#a1a1a1',
+  gray700: '#d1d1d1',
+  gray900: '#ffffff',
+  // Favicon
+  favicon: faviconDark,
+};
+
+type ThemeColors = typeof lightColors;
+
+function getThemeColors(isDark: boolean): ThemeColors {
+  return isDark ? darkColors : lightColors;
+}
+
+// ============================================================================
+// CSS Variables Generator
+// ============================================================================
+
+function generateCSSVariables(isDark: boolean): string {
+  if (isDark) {
+    return `
+      :host {
+        --color-bg: #121212;
+        --color-surface: #1e1e1e;
+        --color-text-primary: #ffffff;
+        --color-text-secondary: #d1d1d1;
+        --color-border: #2a2a2a;
+        --color-primary: #60a5fa;
+        --color-primary-hover: #3b82f6;
+        --color-accent: #34d399;
+      }
+    `;
+  }
+  return `
+    :host {
+      --color-bg: #ffffff;
+      --color-surface: #f5f5f5;
+      --color-text-primary: #111111;
+      --color-text-secondary: #555555;
+      --color-border: #e0e0e0;
+      --color-primary: #3b82f6;
+      --color-primary-hover: #2563eb;
+      --color-accent: #10b981;
+    }
+  `;
+}
 
 // ============================================================================
 // CSS Animations (injected into Shadow DOM)
@@ -111,10 +218,10 @@ const animationStyles = `
 
   @keyframes pulse {
     0%, 100% {
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
     }
     50% {
-      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.4);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
     }
   }
 
@@ -160,12 +267,31 @@ function loadStoredSettings(): StoredSettings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      return { projectPath: '', debugMode: 'wait', theme: 'auto', ...parsed };
     }
   } catch {
     // Ignore parse errors
   }
-  return { projectPath: '', debugMode: 'wait' };
+  return { projectPath: '', debugMode: 'wait', theme: 'auto' };
+}
+
+function useSystemTheme(): boolean {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  return isDark;
 }
 
 function saveStoredSettings(settings: StoredSettings): void {
@@ -205,9 +331,10 @@ interface FloatingButtonProps {
   isOpen: boolean;
   onClick: () => void;
   isWaiting?: boolean;
+  theme: ThemeColors;
 }
 
-function FloatingButton({ isOpen, onClick, isWaiting }: FloatingButtonProps) {
+function FloatingButton({ isOpen, onClick, isWaiting, theme }: FloatingButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -219,24 +346,28 @@ function FloatingButton({ isOpen, onClick, isWaiting }: FloatingButtonProps) {
         width: '56px',
         height: '56px',
         borderRadius: '50%',
-        backgroundColor: isWaiting ? colors.warning : colors.primary,
-        color: colors.white,
+        backgroundColor: isWaiting ? theme.warning : '#2D2D2D',
+        color: theme.white,
         border: 'none',
         cursor: 'pointer',
-        boxShadow: `0 4px 12px ${colors.shadow}`,
+        boxShadow: `0 4px 12px ${theme.shadow}`,
         zIndex: 999999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+        overflow: 'hidden',
+        padding: 0,
       }}
     >
       <img
-        src={faviconUrl}
+        src={theme.favicon}
         alt="Debug"
         style={{
-          width: '32px',
-          height: '32px',
+          width: '52px',
+          height: '52px',
+          borderRadius: '50%',
+          objectFit: 'cover',
           transition: 'transform 0.3s ease',
         }}
       />
@@ -246,13 +377,14 @@ function FloatingButton({ isOpen, onClick, isWaiting }: FloatingButtonProps) {
 
 interface SessionItemProps {
   session: DebugSession;
+  theme: ThemeColors;
 }
 
-function SessionItem({ session }: SessionItemProps) {
+function SessionItem({ session, theme }: SessionItemProps) {
   const statusColor = {
-    answered: colors.success,
-    timeout: colors.error,
-    pending: colors.warning,
+    answered: theme.success,
+    timeout: theme.error,
+    pending: theme.warning,
   }[session.status];
 
   return (
@@ -261,14 +393,14 @@ function SessionItem({ session }: SessionItemProps) {
       style={{
         padding: '8px 10px',
         marginBottom: '6px',
-        backgroundColor: colors.white,
+        backgroundColor: theme.cardBg,
         borderRadius: '6px',
         borderLeft: `3px solid ${statusColor}`,
         cursor: 'default',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 600, fontSize: '11px', color: colors.gray700 }}>
+        <span style={{ fontWeight: 600, fontSize: '11px', color: theme.textSecondary }}>
           {new Date(session.timestamp).toLocaleTimeString()}
         </span>
         <span
@@ -284,7 +416,7 @@ function SessionItem({ session }: SessionItemProps) {
           {session.status}
         </span>
       </div>
-      <div style={{ color: colors.gray700, fontSize: '12px', marginTop: '4px' }}>
+      <div style={{ color: theme.text, fontSize: '12px', marginTop: '4px' }}>
         {session.comment.slice(0, 50)}{session.comment.length > 50 ? '...' : ''}
       </div>
     </div>
@@ -294,9 +426,10 @@ function SessionItem({ session }: SessionItemProps) {
 interface ModalProps {
   children: preact.ComponentChildren;
   onClose?: () => void;
+  theme: ThemeColors;
 }
 
-function Modal({ children, onClose }: ModalProps) {
+function Modal({ children, onClose, theme }: ModalProps) {
   return (
     <div
       className="animate-fade-in"
@@ -306,7 +439,7 @@ function Modal({ children, onClose }: ModalProps) {
         left: 0,
         width: '100%',
         height: '100%',
-        backgroundColor: colors.overlay,
+        backgroundColor: theme.overlay,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -321,14 +454,14 @@ function Modal({ children, onClose }: ModalProps) {
       <div
         className="animate-scale-in"
         style={{
-          backgroundColor: colors.white,
+          backgroundColor: theme.cardBg,
           borderRadius: '12px',
           padding: '24px',
           maxWidth: '500px',
           width: '90%',
           maxHeight: '90vh',
           overflow: 'auto',
-          boxShadow: `0 20px 40px ${colors.shadowHeavy}`,
+          boxShadow: `0 20px 40px ${theme.shadowHeavy}`,
         }}
       >
         {children}
@@ -360,6 +493,7 @@ export function Widget({ config }: WidgetProps) {
 
   const [isOpen, setIsOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTextInput, setShowTextInput] = useState(false);
   const [comment, setComment] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -369,6 +503,10 @@ export function Widget({ config }: WidgetProps) {
   const storedSettings = loadStoredSettings();
   const [projectPath, setProjectPath] = useState(config.projectPath || storedSettings.projectPath || '');
   const [debugMode, setDebugMode] = useState<DebugMode>(storedSettings.debugMode || 'wait');
+  const [themeMode, setThemeMode] = useState<ThemeMode>(storedSettings.theme || 'auto');
+  const systemIsDark = useSystemTheme();
+  const isDark = themeMode === 'auto' ? systemIsDark : themeMode === 'dark';
+  const theme = getThemeColors(isDark);
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [sessions, setSessions] = useState<DebugSession[]>(loadSessions());
 
@@ -503,14 +641,15 @@ export function Widget({ config }: WidgetProps) {
 
   return (
     <div style={{ all: 'initial', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Inject styles */}
-      <style>{animationStyles}</style>
+      {/* Inject styles with CSS variables */}
+      <style>{generateCSSVariables(isDark) + animationStyles}</style>
 
       {/* Floating Button */}
       <FloatingButton
         isOpen={isOpen}
         onClick={() => setIsOpen(!isOpen)}
         isWaiting={isWaitingForResponse}
+        theme={theme}
       />
 
       {/* Debug Panel */}
@@ -523,9 +662,9 @@ export function Widget({ config }: WidgetProps) {
             right: '20px',
             width: '380px',
             maxHeight: '70vh',
-            backgroundColor: colors.white,
+            backgroundColor: theme.background,
             borderRadius: '16px',
-            boxShadow: `0 20px 40px ${colors.shadowHeavy}`,
+            boxShadow: `0 20px 40px ${theme.shadowHeavy}`,
             zIndex: 999999,
             overflow: 'hidden',
             display: 'flex',
@@ -536,16 +675,16 @@ export function Widget({ config }: WidgetProps) {
           <div
             style={{
               padding: '16px 20px',
-              borderBottom: `1px solid ${colors.gray200}`,
+              borderBottom: `1px solid ${theme.border}`,
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              backgroundColor: colors.gray50,
+              backgroundColor: theme.backgroundSecondary,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <img src={faviconUrl} alt="" style={{ width: '24px', height: '24px' }} />
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: colors.gray900 }}>
+              <img src={theme.favicon} alt="" style={{ width: '24px', height: '24px' }} />
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: theme.text }}>
                 Debug Widget
               </h3>
             </div>
@@ -555,8 +694,9 @@ export function Widget({ config }: WidgetProps) {
               style={{
                 padding: '6px 10px',
                 borderRadius: '6px',
-                border: `1px solid ${colors.gray300}`,
-                backgroundColor: colors.white,
+                border: `1px solid ${theme.border}`,
+                backgroundColor: theme.cardBg,
+                color: theme.text,
                 cursor: 'pointer',
                 fontSize: '14px',
               }}
@@ -574,10 +714,10 @@ export function Widget({ config }: WidgetProps) {
                 style={{
                   padding: '10px 14px',
                   marginBottom: '16px',
-                  backgroundColor: colors.warningBg,
+                  backgroundColor: theme.warningBg,
                   borderRadius: '8px',
                   fontSize: '13px',
-                  color: colors.warningText,
+                  color: theme.warningText,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
@@ -587,7 +727,7 @@ export function Widget({ config }: WidgetProps) {
                 <button
                   onClick={() => setShowSettings(true)}
                   style={{
-                    color: colors.primary,
+                    color: theme.primary,
                     textDecoration: 'underline',
                     border: 'none',
                     background: 'none',
@@ -611,7 +751,7 @@ export function Widget({ config }: WidgetProps) {
                   marginBottom: '8px',
                   fontWeight: 600,
                   fontSize: '13px',
-                  color: colors.gray700,
+                  color: theme.textSecondary,
                 }}
               >
                 <span>Recent Sessions</span>
@@ -620,8 +760,8 @@ export function Widget({ config }: WidgetProps) {
                     fontSize: '11px',
                     padding: '2px 8px',
                     borderRadius: '9999px',
-                    backgroundColor: colors.gray100,
-                    color: colors.gray500,
+                    backgroundColor: theme.backgroundTertiary,
+                    color: theme.textMuted,
                   }}
                 >
                   {sessions.length}
@@ -631,7 +771,7 @@ export function Widget({ config }: WidgetProps) {
                 style={{
                   maxHeight: '140px',
                   overflow: 'auto',
-                  backgroundColor: colors.gray100,
+                  backgroundColor: theme.backgroundTertiary,
                   padding: '8px',
                   borderRadius: '8px',
                 }}
@@ -639,7 +779,7 @@ export function Widget({ config }: WidgetProps) {
                 {sessions.length === 0 ? (
                   <div
                     style={{
-                      color: colors.gray400,
+                      color: theme.textPlaceholder,
                       fontStyle: 'italic',
                       fontSize: '12px',
                       textAlign: 'center',
@@ -650,13 +790,13 @@ export function Widget({ config }: WidgetProps) {
                   </div>
                 ) : (
                   sessions.slice(-5).reverse().map((session) => (
-                    <SessionItem key={session.id} session={session} />
+                    <SessionItem key={session.id} session={session} theme={theme} />
                   ))
                 )}
               </div>
             </div>
 
-            {/* Comment Input */}
+            {/* Comment Input - Expandable */}
             <div style={{ marginBottom: '16px' }}>
               <label
                 style={{
@@ -664,34 +804,54 @@ export function Widget({ config }: WidgetProps) {
                   marginBottom: '8px',
                   fontWeight: 600,
                   fontSize: '13px',
-                  color: colors.gray700,
+                  color: theme.textSecondary,
                 }}
               >
                 What's the issue?
               </label>
-              <textarea
-                value={comment}
-                onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
-                placeholder="Describe what went wrong..."
+              <button
+                onClick={() => setShowTextInput(true)}
+                className="transition-all"
                 style={{
                   width: '100%',
-                  minHeight: '80px',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: `1px solid ${colors.gray300}`,
-                  fontSize: '14px',
-                  resize: 'none',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease',
-                  boxSizing: 'border-box',
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: `2px dashed ${comment ? theme.primary : theme.border}`,
+                  backgroundColor: comment ? theme.primaryLight : theme.backgroundSecondary,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
                 }}
-                onFocus={(e) => {
-                  (e.target as HTMLTextAreaElement).style.borderColor = colors.primary;
-                }}
-                onBlur={(e) => {
-                  (e.target as HTMLTextAreaElement).style.borderColor = colors.gray300;
-                }}
-              />
+              >
+                <span
+                  style={{
+                    color: comment ? theme.text : theme.textPlaceholder,
+                    fontSize: '14px',
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {comment || 'Tap to describe the issue...'}
+                </span>
+                <span
+                  style={{
+                    backgroundColor: theme.primary,
+                    color: '#FFFFFF',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    flexShrink: 0,
+                  }}
+                >
+                  {comment ? 'Edit' : 'Expand'}
+                </span>
+              </button>
             </div>
 
             {/* Screenshot Button */}
@@ -705,8 +865,8 @@ export function Widget({ config }: WidgetProps) {
                     padding: '10px 16px',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: screenshot ? colors.success : colors.secondary,
-                    color: colors.white,
+                    backgroundColor: screenshot ? theme.success : theme.secondary,
+                    color: '#FFFFFF',
                     cursor: isCapturing ? 'wait' : 'pointer',
                     fontSize: '13px',
                     fontWeight: 500,
@@ -738,9 +898,9 @@ export function Widget({ config }: WidgetProps) {
                   marginBottom: '16px',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  backgroundColor: colors.gray100,
+                  backgroundColor: theme.backgroundTertiary,
                   fontSize: '13px',
-                  color: colors.gray700,
+                  color: theme.textSecondary,
                 }}
               >
                 {status}
@@ -752,8 +912,8 @@ export function Widget({ config }: WidgetProps) {
           <div
             style={{
               padding: '16px 20px',
-              borderTop: `1px solid ${colors.gray200}`,
-              backgroundColor: colors.gray50,
+              borderTop: `1px solid ${theme.border}`,
+              backgroundColor: theme.backgroundSecondary,
             }}
           >
             <button
@@ -765,8 +925,8 @@ export function Widget({ config }: WidgetProps) {
                 padding: '14px',
                 borderRadius: '10px',
                 border: 'none',
-                backgroundColor: isWaitingForResponse ? colors.warning : colors.primary,
-                color: colors.white,
+                backgroundColor: isWaitingForResponse ? theme.warning : theme.primary,
+                color: '#FFFFFF',
                 fontWeight: 600,
                 cursor: isSending || isWaitingForResponse ? 'not-allowed' : 'pointer',
                 fontSize: '15px',
@@ -789,26 +949,26 @@ export function Widget({ config }: WidgetProps) {
 
       {/* Q&A Modal */}
       {questions.length > 0 && (
-        <Modal>
+        <Modal theme={theme}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div
               style={{
                 width: '40px',
                 height: '40px',
                 borderRadius: '10px',
-                backgroundColor: colors.primaryLight,
+                backgroundColor: theme.primaryLight,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <img src={faviconUrl} alt="" style={{ width: '24px', height: '24px' }} />
+              <img src={theme.favicon} alt="" style={{ width: '24px', height: '24px' }} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: colors.gray900 }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: theme.text }}>
                 Claude has questions
               </h3>
-              <p style={{ margin: '4px 0 0', fontSize: '13px', color: colors.gray500 }}>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', color: theme.textMuted }}>
                 Question {currentStep + 1} of {questions.length}
               </p>
             </div>
@@ -818,7 +978,7 @@ export function Widget({ config }: WidgetProps) {
           <div
             style={{
               height: '4px',
-              backgroundColor: colors.gray200,
+              backgroundColor: theme.border,
               borderRadius: '2px',
               marginBottom: '24px',
               overflow: 'hidden',
@@ -828,7 +988,7 @@ export function Widget({ config }: WidgetProps) {
               style={{
                 height: '100%',
                 width: `${((currentStep + 1) / questions.length) * 100}%`,
-                backgroundColor: colors.primary,
+                backgroundColor: theme.primary,
                 borderRadius: '2px',
                 transition: 'width 0.3s ease',
               }}
@@ -842,7 +1002,7 @@ export function Widget({ config }: WidgetProps) {
                   fontWeight: 500,
                   marginBottom: '16px',
                   fontSize: '15px',
-                  color: colors.gray900,
+                  color: theme.text,
                   lineHeight: 1.5,
                 }}
               >
@@ -860,7 +1020,9 @@ export function Widget({ config }: WidgetProps) {
                     width: '100%',
                     padding: '12px',
                     borderRadius: '8px',
-                    border: `1px solid ${colors.gray300}`,
+                    border: `1px solid ${theme.border}`,
+                    backgroundColor: theme.inputBg,
+                    color: theme.text,
                     fontSize: '14px',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -880,8 +1042,8 @@ export function Widget({ config }: WidgetProps) {
                         alignItems: 'center',
                         padding: '12px',
                         borderRadius: '8px',
-                        border: `1px solid ${answers[questions[currentStep].id] === option ? colors.primary : colors.gray300}`,
-                        backgroundColor: answers[questions[currentStep].id] === option ? colors.primaryLight : colors.white,
+                        border: `1px solid ${answers[questions[currentStep].id] === option ? theme.primary : theme.border}`,
+                        backgroundColor: answers[questions[currentStep].id] === option ? theme.primaryLight : theme.cardBg,
                         cursor: 'pointer',
                       }}
                     >
@@ -893,7 +1055,7 @@ export function Widget({ config }: WidgetProps) {
                         onChange={() => setAnswers({ ...answers, [questions[currentStep].id]: option })}
                         style={{ marginRight: '12px' }}
                       />
-                      <span style={{ fontSize: '14px', color: colors.gray700 }}>{option}</span>
+                      <span style={{ fontSize: '14px', color: theme.text }}>{option}</span>
                     </label>
                   ))}
                 </div>
@@ -907,8 +1069,9 @@ export function Widget({ config }: WidgetProps) {
                     style={{
                       padding: '12px 20px',
                       borderRadius: '8px',
-                      border: `1px solid ${colors.gray300}`,
-                      backgroundColor: colors.white,
+                      border: `1px solid ${theme.border}`,
+                      backgroundColor: theme.cardBg,
+                      color: theme.text,
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: 500,
@@ -926,8 +1089,8 @@ export function Widget({ config }: WidgetProps) {
                       padding: '12px 20px',
                       borderRadius: '8px',
                       border: 'none',
-                      backgroundColor: colors.primary,
-                      color: colors.white,
+                      backgroundColor: theme.primary,
+                      color: '#FFFFFF',
                       cursor: 'pointer',
                       flex: 1,
                       fontSize: '14px',
@@ -944,8 +1107,8 @@ export function Widget({ config }: WidgetProps) {
                       padding: '12px 20px',
                       borderRadius: '8px',
                       border: 'none',
-                      backgroundColor: colors.success,
-                      color: colors.white,
+                      backgroundColor: theme.success,
+                      color: '#FFFFFF',
                       cursor: 'pointer',
                       flex: 1,
                       fontSize: '14px',
@@ -963,9 +1126,9 @@ export function Widget({ config }: WidgetProps) {
 
       {/* Settings Modal */}
       {showSettings && (
-        <Modal onClose={() => setShowSettings(false)}>
+        <Modal onClose={() => setShowSettings(false)} theme={theme}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: colors.gray900 }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: theme.text }}>
               Settings
             </h3>
             <button
@@ -976,7 +1139,7 @@ export function Widget({ config }: WidgetProps) {
                 fontSize: '20px',
                 cursor: 'pointer',
                 padding: '4px',
-                color: colors.gray400,
+                color: theme.textPlaceholder,
               }}
             >
               ×
@@ -990,7 +1153,7 @@ export function Widget({ config }: WidgetProps) {
                 marginBottom: '8px',
                 fontWeight: 600,
                 fontSize: '13px',
-                color: colors.gray700,
+                color: theme.textSecondary,
               }}
             >
               Project Path
@@ -1004,13 +1167,15 @@ export function Widget({ config }: WidgetProps) {
                 width: '100%',
                 padding: '12px',
                 borderRadius: '8px',
-                border: `1px solid ${colors.gray300}`,
+                border: `1px solid ${theme.border}`,
+                backgroundColor: theme.inputBg,
+                color: theme.text,
                 fontSize: '14px',
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
             />
-            <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: colors.gray500 }}>
+            <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: theme.textMuted }}>
               Full filesystem path to your project for Claude Code access.
             </p>
           </div>
@@ -1022,7 +1187,7 @@ export function Widget({ config }: WidgetProps) {
                 marginBottom: '12px',
                 fontWeight: 600,
                 fontSize: '13px',
-                color: colors.gray700,
+                color: theme.textSecondary,
               }}
             >
               Debug Mode
@@ -1035,16 +1200,16 @@ export function Widget({ config }: WidgetProps) {
                   flex: 1,
                   padding: '16px',
                   borderRadius: '12px',
-                  border: debugMode === 'wait' ? `2px solid ${colors.primary}` : `1px solid ${colors.gray300}`,
-                  backgroundColor: debugMode === 'wait' ? colors.primaryLight : colors.white,
+                  border: debugMode === 'wait' ? `2px solid ${theme.primary}` : `1px solid ${theme.border}`,
+                  backgroundColor: debugMode === 'wait' ? theme.primaryLight : theme.cardBg,
                   cursor: 'pointer',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: '4px', color: colors.gray900 }}>
+                <div style={{ fontWeight: 600, marginBottom: '4px', color: theme.text }}>
                   Wait for Response
                 </div>
-                <div style={{ fontSize: '12px', color: colors.gray500 }}>Fix issues immediately</div>
+                <div style={{ fontSize: '12px', color: theme.textMuted }}>Fix issues immediately</div>
               </button>
               <button
                 onClick={() => setDebugMode('backlog')}
@@ -1053,17 +1218,56 @@ export function Widget({ config }: WidgetProps) {
                   flex: 1,
                   padding: '16px',
                   borderRadius: '12px',
-                  border: debugMode === 'backlog' ? `2px solid ${colors.primary}` : `1px solid ${colors.gray300}`,
-                  backgroundColor: debugMode === 'backlog' ? colors.primaryLight : colors.white,
+                  border: debugMode === 'backlog' ? `2px solid ${theme.primary}` : `1px solid ${theme.border}`,
+                  backgroundColor: debugMode === 'backlog' ? theme.primaryLight : theme.cardBg,
                   cursor: 'pointer',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: '4px', color: colors.gray900 }}>
+                <div style={{ fontWeight: 600, marginBottom: '4px', color: theme.text }}>
                   Add to Backlog
                 </div>
-                <div style={{ fontSize: '12px', color: colors.gray500 }}>Queue for later review</div>
+                <div style={{ fontSize: '12px', color: theme.textMuted }}>Queue for later review</div>
               </button>
+            </div>
+          </div>
+
+          {/* Theme Selection */}
+          <div style={{ marginBottom: '24px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '12px',
+                fontWeight: 600,
+                fontSize: '13px',
+                color: theme.textSecondary,
+              }}
+            >
+              Theme
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['light', 'dark', 'auto'] as ThemeMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setThemeMode(mode)}
+                  className="transition-all"
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: themeMode === mode ? `2px solid ${theme.primary}` : `1px solid ${theme.border}`,
+                    backgroundColor: themeMode === mode ? theme.primaryLight : theme.cardBg,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    fontWeight: 500,
+                    fontSize: '13px',
+                    color: themeMode === mode ? theme.primary : theme.textSecondary,
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {mode === 'auto' ? '🌓 Auto' : mode === 'dark' ? '🌙 Dark' : '☀️ Light'}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1074,8 +1278,9 @@ export function Widget({ config }: WidgetProps) {
               style={{
                 padding: '12px 24px',
                 borderRadius: '8px',
-                border: `1px solid ${colors.gray300}`,
-                backgroundColor: colors.white,
+                border: `1px solid ${theme.border}`,
+                backgroundColor: theme.cardBg,
+                color: theme.text,
                 cursor: 'pointer',
                 fontSize: '14px',
                 fontWeight: 500,
@@ -1085,7 +1290,7 @@ export function Widget({ config }: WidgetProps) {
             </button>
             <button
               onClick={() => {
-                saveStoredSettings({ projectPath, debugMode });
+                saveStoredSettings({ projectPath, debugMode, theme: themeMode });
                 setShowSettings(false);
                 setStatus('Settings saved');
               }}
@@ -1094,8 +1299,8 @@ export function Widget({ config }: WidgetProps) {
                 padding: '12px 24px',
                 borderRadius: '8px',
                 border: 'none',
-                backgroundColor: colors.primary,
-                color: colors.white,
+                backgroundColor: theme.primary,
+                color: '#FFFFFF',
                 cursor: 'pointer',
                 fontWeight: 600,
                 fontSize: '14px',
@@ -1105,6 +1310,141 @@ export function Widget({ config }: WidgetProps) {
             </button>
           </div>
         </Modal>
+      )}
+
+      {/* Fullscreen Text Input Modal */}
+      {showTextInput && (
+        <div
+          className="animate-fade-in"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: theme.background,
+            zIndex: 99999999,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              padding: '16px 20px',
+              borderBottom: `1px solid ${theme.border}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: theme.primary,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img src={theme.favicon} alt="" style={{ width: '28px', height: '28px' }} />
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#FFFFFF' }}>
+                Describe the Issue
+              </h3>
+            </div>
+            <button
+              onClick={() => setShowTextInput(false)}
+              style={{
+                border: 'none',
+                background: 'rgba(255,255,255,0.2)',
+                fontSize: '14px',
+                cursor: 'pointer',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                color: '#FFFFFF',
+                fontWeight: 500,
+              }}
+            >
+              Minimize
+            </button>
+          </div>
+
+          {/* Textarea */}
+          <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', backgroundColor: theme.background }}>
+            <textarea
+              value={comment}
+              onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
+              placeholder="Describe in detail what went wrong, what you expected to happen, and any steps to reproduce the issue..."
+              autoFocus
+              style={{
+                flex: 1,
+                width: '100%',
+                padding: '20px',
+                borderRadius: '12px',
+                border: `2px solid ${theme.border}`,
+                backgroundColor: theme.inputBg,
+                color: theme.text,
+                fontSize: '16px',
+                lineHeight: 1.6,
+                resize: 'none',
+                outline: 'none',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+              }}
+              onFocus={(e) => {
+                (e.target as HTMLTextAreaElement).style.borderColor = theme.primary;
+              }}
+              onBlur={(e) => {
+                (e.target as HTMLTextAreaElement).style.borderColor = theme.border;
+              }}
+            />
+          </div>
+
+          {/* Footer */}
+          <div
+            style={{
+              padding: '16px 20px',
+              borderTop: `1px solid ${theme.border}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: theme.backgroundSecondary,
+            }}
+          >
+            <span style={{ fontSize: '13px', color: theme.textMuted }}>
+              {comment.length} characters
+            </span>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  setComment('');
+                }}
+                className="transition-colors"
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  border: `1px solid ${theme.border}`,
+                  backgroundColor: theme.cardBg,
+                  color: theme.text,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setShowTextInput(false)}
+                className="transition-colors"
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: theme.primary,
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
