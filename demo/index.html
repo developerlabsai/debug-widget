@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Widget Demo</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    button {
+      margin: 8px;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #4F46E5;
+      color: white;
+    }
+    button:hover {
+      background: #4338CA;
+    }
+    .section {
+      margin: 32px 0;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐛 Debug Widget Demo</h1>
+  <p>This page demonstrates the debug widget. Click the floating bug button (bottom-right) to open the debug panel.</p>
+
+  <div class="section">
+    <h2>Test Console Logs</h2>
+    <button onclick="console.log('This is a test log')">console.log</button>
+    <button onclick="console.warn('This is a warning')">console.warn</button>
+    <button onclick="console.error('This is an error')">console.error</button>
+  </div>
+
+  <div class="section">
+    <h2>Test Errors</h2>
+    <button onclick="throw new Error('Test error thrown!')">Throw Error</button>
+    <button onclick="Promise.reject('Unhandled rejection')">Promise Rejection</button>
+  </div>
+
+  <div class="section">
+    <h2>Instructions</h2>
+    <ol>
+      <li>Make sure the MCP server is running: <code>cd debug-mcp-server && npm run dev</code></li>
+      <li>Click some of the test buttons above to generate logs and errors</li>
+      <li>Click the floating 🐛 button in the bottom-right</li>
+      <li>Add a comment describing the issue</li>
+      <li>Optionally capture a screenshot</li>
+      <li>Click "Send to Claude" to submit the debug report</li>
+    </ol>
+  </div>
+
+  <!-- Load the debug widget -->
+  <script type="module" src="/src/index.ts"></script>
+</body>
+</html>
